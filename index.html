@@ -707,7 +707,14 @@ function initDefaultAdmin(){
 }
 
 function getCurrentSession(){
-  try{ return JSON.parse(sessionStorage.getItem('a7_session')||'null'); } catch(e){ return null; }
+  try {
+    const raw = localStorage.getItem('a7_session');
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    // Expiration : 30 jours (fermeture appli ne déconnecte pas)
+    if(data._exp && Date.now() > data._exp){ localStorage.removeItem('a7_session'); return null; }
+    return data;
+  } catch(e){ return null; }
 }
 
 function doLogin(){
@@ -718,19 +725,26 @@ function doLogin(){
     const users = getUsers();
     const user = users.find(u=>u.username.toLowerCase()===username && u.pwHash===fnv1a(pass));
     if(!user){ $('#loginErr').textContent='Identifiant ou mot de passe incorrect.'; return; }
-    sessionStorage.setItem('a7_session', JSON.stringify({username:user.username,role:user.role,permissions:user.permissions}));
+    // Sauvegarder en localStorage (persiste après fermeture) avec expiration 30 jours
+    const sessionData = {
+      username: user.username,
+      role: user.role,
+      permissions: user.permissions,
+      _exp: Date.now() + 30 * 24 * 60 * 60 * 1000
+    };
+    localStorage.setItem('a7_session', JSON.stringify(sessionData));
     $('#loginOverlay').style.display='none';
     $('#app').style.display='';
     applySession(user);
     setTimeout(loadTextColorsUI, 200);
   } catch(e) {
     console.error('Login error:', e);
-    $('#loginErr').textContent = 'Erreur au démarrage. Rechargez la page (F5).';
+    $('#loginErr').textContent = 'Erreur au démarrage. Rechargez la page.';
   }
 }
 
 function logout(){
-  sessionStorage.removeItem('a7_session');
+  localStorage.removeItem('a7_session');
   location.reload();
 }
 
@@ -1298,28 +1312,59 @@ function drawLabelText(ctx, item){
 
   // --- Ingrédients AR/FR avec AUTO-FIT ---
   if(hasIng){
-    const maxW = CW*0.9;
-    const startXIng = CW*0.05;
     const minFz = hasBg ? 7 : 4*m;
+
+    // ── Rectangle blanc arrondi pour ingrédients FR ──
+    // Dimensions physiques : 7.05cm × 1.67cm → 211.5 × 50.1 px (à S=3px/mm)
+    const BOX_W  = hasBg ? (L.ingBoxW  ?? 211.5) : CW*0.92;
+    const BOX_H  = hasBg ? (L.ingBoxH  ?? 50.1)  : 60*m;
+    const BOX_X  = hasBg ? (L.ingBoxX  ?? (CW - (L.ingBoxW??211.5))/2) : CW*0.04;
+    const BOX_Y  = hasBg ? CH*(L.ingY  ?? 0.44)  : CH*0.42;
+    const BOX_PAD_X = 5;   // padding horizontal intérieur
+    const BOX_PAD_Y = 4;   // padding vertical intérieur
+    const BOX_R    = 6;    // rayon arrondi
+
+    // Zone de texte disponible dans le rectangle
+    const maxW     = BOX_W - BOX_PAD_X * 2;
+    const maxH     = BOX_H - BOX_PAD_Y * 2;
+    const startXIng = BOX_X + BOX_PAD_X;
+    const textY     = BOX_Y + BOX_PAD_Y;
 
     // FRANÇAIS en premier
     if(item.ingredients_fr && item.ingredients_fr.trim().length>0){
       let ingText = item.ingredients_fr.trim();
+
+      // Dessiner le rectangle blanc arrondi
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.roundRect(BOX_X, BOX_Y, BOX_W, BOX_H, BOX_R);
+      ctx.fill();
+      ctx.restore();
+
+      // Auto-fit : réduire la taille jusqu'à ce que tout rentre
       let fz = fzIngFR;
       while(fz > minFz){
         ctx.font = `${fz}px sans-serif`;
-        const lineH = fz * 1.3;
+        const lineH = fz * 1.25;
         const words = ingText.split(' ');
         let lines = 1, lineW = 0;
         for(const w of words){
           const ww = ctx.measureText(w + ' ').width;
           if(lineW + ww > maxW){ lines++; lineW = ww; } else { lineW += ww; }
         }
-        if(lines * lineH <= ingMaxH) break;
+        if(lines * lineH <= maxH) break;
         fz -= 0.5;
       }
       if(fz < minFz) fz = minFz;
-      drawAllergenText(ctx, ingText, startXIng, ingY, maxW, fz, hasBg ? C.ingredientsFr : C.ingredientsFrNoBg, C.allergen);
+
+      // Clip au rectangle pour ne jamais déborder
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(BOX_X, BOX_Y, BOX_W, BOX_H, BOX_R);
+      ctx.clip();
+      drawAllergenText(ctx, ingText, startXIng, textY, maxW, fz, '#222222', C.allergen);
+      ctx.restore();
     }
 
     // ARABE en dessous
@@ -1793,6 +1838,15 @@ function renderTemplates(){
           <label>Ingr. FR Y<input type="number" min="0" max="100" value="${pct('ingY',0.44)}" data-tpl="${name}" data-key="ingY" style="width:100%"></label>
           <label>Ingr. AR Y<input type="number" min="0" max="100" value="${pct('ingArY',0.56)}" data-tpl="${name}" data-key="ingArY" style="width:100%"></label>
           <label>Ingr. Haut. max<input type="number" min="0" max="100" value="${pct('ingMaxH',0.10)}" data-tpl="${name}" data-key="ingMaxH" style="width:100%"></label>
+        </div>
+        <div style="font-weight:700;font-size:10px;color:#86efac;margin:6px 0 4px">▸ RECTANGLE BLANC INGRÉDIENTS FR (px)</div>
+        <div style="font-size:10px;color:var(--text4);margin-bottom:4px">7.05×1.67cm = 211×50px par défaut</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-bottom:8px">
+          <label>Boîte X (px)<input type="number" min="0" max="222" value="${L.ingBoxX??''}" placeholder="auto" data-tpl="${name}" data-key="ingBoxX" data-ispx="1" style="width:100%"></label>
+          <label>Boîte Y (px)<input type="number" min="0" max="315" value="${L.ingBoxY??''}" placeholder="= ingY" data-tpl="${name}" data-key="ingBoxY" data-ispx="1" style="width:100%"></label>
+          <label>Boîte L (px)<input type="number" min="10" max="222" value="${L.ingBoxW??211}" data-tpl="${name}" data-key="ingBoxW" data-ispx="1" style="width:100%"></label>
+          <label>Boîte H (px)<input type="number" min="10" max="315" value="${L.ingBoxH??50}" data-tpl="${name}" data-key="ingBoxH" data-ispx="1" style="width:100%"></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
           <label>Prix Y<input type="number" min="0" max="100" value="${pct('priceY',0.82)}" data-tpl="${name}" data-key="priceY" style="width:100%"></label>
           <label>Unité X<input type="number" min="0" max="100" value="${pct('uniteX',0.85)}" data-tpl="${name}" data-key="uniteX" style="width:100%"></label>
           <label>Unité Y<input type="number" min="0" max="100" value="${pct('uniteY',0.78)}" data-tpl="${name}" data-key="uniteY" style="width:100%"></label>
@@ -2012,7 +2066,8 @@ async function loadCanvasFonts(){
   if(lu) try{ $('#uniteInput').value=lu; }catch(e){}
   try{ $('#uniteInput').addEventListener('change',()=>localStorage.setItem('a7_last_unite',$('#uniteInput').value)); }catch(e){}
   setTimeout(()=>{ try{ $('#codeInput').focus(); }catch(e){} }, 200);
-  
+})(); // ← fermeture de init()
+
 // ═══════════════════════════════════════════════════════════════
 // SCAN BARCODE MOBILE + SAUVEGARDE AVANT QUITTER
 // ═══════════════════════════════════════════════════════════════
@@ -2034,6 +2089,21 @@ async function startBarcodeScan(){
       if(typeof onCodeEnter==='function') onCodeEnter();
       else $('#codeInput').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
     }, 250);
+  }
+
+  // ── Détection contexte non-sécurisé (file://, content://) ──
+  // getUserMedia est BLOQUÉ dans ces contextes sur Android Chrome.
+  // Seul fallback qui marche : <input type=file capture=environment>
+  // suivi d'une détection BarcodeDetector sur l'image capturée.
+  const isSecure = window.isSecureContext ||
+                   location.protocol === 'https:' ||
+                   location.hostname === 'localhost' ||
+                   location.hostname === '127.0.0.1';
+
+  if(!isSecure){
+    // Contexte non-sécurisé détecté → utiliser caméra native Android
+    await startBarcodeScanFileInput(onScanned);
+    return;
   }
 
   // Taille adaptive de la boite de scan
@@ -2116,6 +2186,98 @@ async function startBarcodeScan(){
     console.warn('Html5Qrcode lib not loaded, trying native BarcodeDetector');
     await startBarcodeScanNative(input, onScanned);
   }
+}
+
+// ── Méthode 0 : Caméra native via <input capture> ──
+// SEULE méthode qui fonctionne depuis file:// ou content:// sur Android.
+// Ouvre directement l'appli caméra native, pas besoin de HTTPS.
+async function startBarcodeScanFileInput(onScanned){
+  // Créer un input caméra invisible
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.capture = 'environment'; // caméra arrière Android
+
+  const overlay = document.createElement('div');
+  overlay.id = 'scanOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="width:100%;max-width:400px;background:#12100c;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">📷</div>
+      <div style="font-weight:700;color:var(--amber);font-size:16px;margin-bottom:8px">Scanner Code-barres</div>
+      <div style="font-size:12px;color:var(--text4);margin-bottom:18px">
+        Prenez une photo du code-barres avec la caméra.<br>
+        Le code sera détecté automatiquement.
+      </div>
+      <button id="openCamBtn" style="background:var(--amber);color:#000;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px">
+        <i class="ri-camera-line"></i> Ouvrir la caméra
+      </button>
+      <div id="scanFileStatus" style="font-size:12px;color:var(--amber);min-height:20px;margin-bottom:8px"></div>
+      <button id="closeScanFile" style="background:transparent;border:1px solid var(--border);color:var(--text3);border-radius:8px;padding:8px 20px;font-size:13px;cursor:pointer;width:100%">
+        Annuler
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const statusEl = document.getElementById('scanFileStatus');
+
+  function closeAll(){
+    const el = document.getElementById('scanOverlay');
+    if(el) el.remove();
+  }
+
+  document.getElementById('closeScanFile').onclick = closeAll;
+
+  document.getElementById('openCamBtn').onclick = () => {
+    fileInput.click();
+  };
+
+  fileInput.onchange = async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if(!file){ closeAll(); return; }
+
+    statusEl.textContent = '⏳ Analyse en cours...';
+
+    try {
+      // Méthode A : BarcodeDetector sur l'image (si dispo)
+      if('BarcodeDetector' in window){
+        const img = await createImageBitmap(file);
+        const formats = await BarcodeDetector.getSupportedFormats();
+        const detector = new BarcodeDetector({ formats });
+        const barcodes = await detector.detect(img);
+        if(barcodes.length > 0){
+          closeAll();
+          onScanned(barcodes[0].rawValue);
+          return;
+        }
+        statusEl.textContent = '⚠️ Aucun code détecté — réessayez plus près';
+        document.getElementById('openCamBtn').textContent = '📷 Réessayer';
+        return;
+      }
+
+      // Méthode B : Html5Qrcode sur l'image uploadée
+      if(typeof Html5Qrcode !== 'undefined'){
+        statusEl.textContent = '⏳ Lecture via Html5Qrcode...';
+        try {
+          const result = await Html5Qrcode.scanFile(file, true);
+          closeAll();
+          onScanned(result);
+          return;
+        } catch(e2) {
+          statusEl.textContent = '⚠️ Aucun code détecté — réessayez plus près';
+          document.getElementById('openCamBtn').textContent = '📷 Réessayer';
+          return;
+        }
+      }
+
+      // Aucune lib dispo
+      statusEl.textContent = '❌ Détection impossible — saisissez le code manuellement';
+
+    } catch(e) {
+      console.error('FileInput scan error:', e);
+      statusEl.textContent = '❌ Erreur: ' + (e.message || e);
+    }
+  };
 }
 
 // ── Méthode 2 : BarcodeDetector natif (Android Chrome, Safari 17+) ──
@@ -2264,8 +2426,7 @@ window.addEventListener('beforeunload', (e)=>{
   }catch(err){}
 });
 
-  loadCanvasFonts();
-})();
+loadCanvasFonts();
 </script>
 </body>
 </html>
