@@ -646,6 +646,19 @@ tr:hover td{background:var(--surf3)}
     </div>
     <button class="btn btn-amber btn-full" onclick="doLogin()"><i class="ri-login-box-line"></i> Se connecter</button>
     <div id="loginErr" class="login-err"></div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+      <details style="font-size:11px">
+        <summary style="cursor:pointer;color:var(--text3);user-select:none">⚠️ Problème de connexion ?</summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+          <button class="btn" style="font-size:11px;padding:6px 10px;background:var(--surf2);width:100%" onclick="debugLogin()">
+            🔍 Diagnostiquer le compte
+          </button>
+          <button class="btn" style="font-size:11px;padding:6px 10px;background:#7f1d1d;color:#fca5a5;width:100%" onclick="resetAuth()">
+            🔄 Réinitialiser comptes (données conservées)
+          </button>
+        </div>
+      </details>
+    </div>
   </div>
 </div>
 
@@ -699,11 +712,21 @@ function saveUsers(users){
 }
 
 function initDefaultAdmin(){
-  const users = getUsers();
-  if(!users.find(u=>u.username==='admin')){
-    users.unshift({username:'admin',pwHash:fnv1a('admin123'),role:'admin',permissions:ALL_TABS});
+  try {
+    let users = getUsers();
+    // Nettoyer les entrées corrompues (sans username ou pwHash)
+    users = users.filter(u => u && typeof u.username === 'string' && typeof u.pwHash === 'string');
+    const adminExists = users.find(u => u.username.toLowerCase() === 'admin');
+    if(!adminExists){
+      users.unshift({username:'admin', pwHash:fnv1a('admin123'), role:'admin', permissions:ALL_TABS});
+    } else {
+      // S'assurer que l'admin a toujours le rôle admin et toutes les permissions
+      const idx = users.indexOf(adminExists);
+      users[idx].role = 'admin';
+      users[idx].permissions = ALL_TABS;
+    }
     saveUsers(users);
-  }
+  } catch(e){ console.error('initDefaultAdmin error:', e); }
 }
 
 function getCurrentSession(){
@@ -711,21 +734,36 @@ function getCurrentSession(){
     const raw = localStorage.getItem('a7_session');
     if(!raw) return null;
     const data = JSON.parse(raw);
-    // Expiration : 30 jours (fermeture appli ne déconnecte pas)
+    if(!data || !data.username) { localStorage.removeItem('a7_session'); return null; }
+    // Expiration 30 jours
     if(data._exp && Date.now() > data._exp){ localStorage.removeItem('a7_session'); return null; }
-    return data;
-  } catch(e){ return null; }
+    // Vérifier que l'utilisateur existe encore dans la base
+    const users = getUsers();
+    const still = users.find(u => u.username.toLowerCase() === data.username.toLowerCase());
+    if(!still){ localStorage.removeItem('a7_session'); return null; }
+    // Retourner les données fraîches de l'utilisateur (permissions à jour)
+    return { username: still.username, role: still.role, permissions: still.permissions, _exp: data._exp };
+  } catch(e){ localStorage.removeItem('a7_session'); return null; }
 }
 
 function doLogin(){
   try {
+    $('#loginErr').textContent = '';
     const username = ($('#loginUser').value||'').trim().toLowerCase();
     const pass = $('#loginPass').value;
-    if(!username||!pass){ $('#loginErr').textContent='Identifiant et mot de passe requis.'; return; }
-    const users = getUsers();
-    const user = users.find(u=>u.username.toLowerCase()===username && u.pwHash===fnv1a(pass));
-    if(!user){ $('#loginErr').textContent='Identifiant ou mot de passe incorrect.'; return; }
-    // Sauvegarder en localStorage (persiste après fermeture) avec expiration 30 jours
+    if(!username || !pass){
+      $('#loginErr').textContent = 'Identifiant et mot de passe requis.';
+      return;
+    }
+    let users = getUsers();
+    // Nettoyer les données corrompues avant de chercher
+    users = users.filter(u => u && typeof u.username === 'string' && typeof u.pwHash === 'string');
+    const hash = fnv1a(pass);
+    const user = users.find(u => u.username.toLowerCase() === username && u.pwHash === hash);
+    if(!user){
+      $('#loginErr').textContent = 'Identifiant ou mot de passe incorrect.';
+      return;
+    }
     const sessionData = {
       username: user.username,
       role: user.role,
@@ -733,13 +771,13 @@ function doLogin(){
       _exp: Date.now() + 30 * 24 * 60 * 60 * 1000
     };
     localStorage.setItem('a7_session', JSON.stringify(sessionData));
-    $('#loginOverlay').style.display='none';
-    $('#app').style.display='';
+    $('#loginOverlay').style.display = 'none';
+    $('#app').style.display = '';
     applySession(user);
     setTimeout(loadTextColorsUI, 200);
   } catch(e) {
     console.error('Login error:', e);
-    $('#loginErr').textContent = 'Erreur au démarrage. Rechargez la page.';
+    $('#loginErr').textContent = 'Erreur technique. Rechargez la page.';
   }
 }
 
@@ -747,6 +785,52 @@ function logout(){
   localStorage.removeItem('a7_session');
   location.reload();
 }
+function debugLogin(){
+  try {
+    const username = ($('#loginUser').value||'').trim().toLowerCase();
+    const pass = $('#loginPass').value;
+    const users = getUsers();
+    let msg = '';
+
+    msg += `👥 Comptes trouvés : ${users.length}\n`;
+    users.forEach((u,i) => {
+      msg += `  [${i+1}] "${u.username}" — rôle: ${u.role||'?'} — hash: ${u.pwHash?u.pwHash.substring(0,8)+'...':'MANQUANT'}\n`;
+    });
+
+    if(username){
+      const found = users.find(u => u.username.toLowerCase() === username);
+      if(!found){
+        msg += `\n❌ Utilisateur "${username}" introuvable.`;
+      } else {
+        msg += `\n✓ Utilisateur "${username}" trouvé.`;
+        if(pass){
+          const hash = fnv1a(pass);
+          msg += `\n  Hash saisi     : ${hash.substring(0,8)}...`;
+          msg += `\n  Hash enregistré: ${found.pwHash?found.pwHash.substring(0,8):'VIDE'}...`;
+          msg += hash === found.pwHash ? '\n  ✅ Mot de passe CORRECT' : '\n  ❌ Mot de passe INCORRECT';
+        }
+      }
+    } else {
+      msg += '\n→ Saisissez votre identifiant pour analyser.';
+    }
+
+    alert(msg);
+  } catch(e) {
+    alert('Erreur diagnostic : ' + e.message);
+  }
+}
+
+function resetAuth(){
+  if(!confirm('Réinitialiser tous les comptes ?\nLe compte admin (admin123) sera recréé.\nVos données (articles, templates) sont conservées.')) return;
+  localStorage.removeItem('a7_users');
+  localStorage.removeItem('a7_session');
+  // Recréer admin proprement
+  const users = [{username:'admin', pwHash:fnv1a('admin123'), role:'admin', permissions:ALL_TABS}];
+  localStorage.setItem('a7_users', JSON.stringify(users));
+  alert('✅ Comptes réinitialisés.\nIdentifiant : admin\nMot de passe : admin123');
+  location.reload();
+}
+
 
 function applySession(user){
   // Show header info
@@ -911,7 +995,17 @@ let state = {
   mapping:     JSON.parse(localStorage.getItem('a7_mapping')||'null') || JSON.parse(JSON.stringify(DEFAULT_MAPPING)),
   productTpl:  JSON.parse(localStorage.getItem('a7_product_tpl')||'{}'),
   history:     JSON.parse(localStorage.getItem('a7_history')||'[]'),
-  tplLayout:   JSON.parse(localStorage.getItem('a7_tpl_layout')||'{}'),
+  tplLayout:   (()=>{
+    // Migration : ancienne clé a7_tpl_layout → a7_tplLayout
+    const v = localStorage.getItem('a7_tplLayout') || localStorage.getItem('a7_tpl_layout') || '{}';
+    const parsed = JSON.parse(v);
+    // Nettoyer l'ancienne clé si elle existe
+    if(localStorage.getItem('a7_tpl_layout')) {
+      localStorage.setItem('a7_tplLayout', v);
+      localStorage.removeItem('a7_tpl_layout');
+    }
+    return parsed;
+  })(),
   textColors:  JSON.parse(localStorage.getItem('a7_text_colors')||'null') || {
     designation:'#FFFFFF', designationNoBg:'#111111',
     prix:'#8B0000', prixNoBg:'#000000',
@@ -1367,9 +1461,29 @@ function drawLabelText(ctx, item){
       ctx.restore();
     }
 
-    // ARABE en dessous
+    // ARABE en dessous — dans son propre rectangle blanc arrondi
     if(item.ingredients_ar && item.ingredients_ar.trim().length>0){
       let ingText = item.ingredients_ar.trim();
+
+      // Boîte AR : même largeur que FR, juste en dessous avec 6px d'espace
+      const BOX_AR_W = BOX_W;
+      const BOX_AR_H = hasBg ? (L.ingArBoxH ?? 50) : 60*m;
+      const BOX_AR_X = BOX_X;
+      const BOX_AR_Y = BOX_Y + BOX_H + 6;
+      const maxWAR   = BOX_AR_W - BOX_PAD_X * 2;
+      const maxHAR   = BOX_AR_H - BOX_PAD_Y * 2;
+      const startXAR = BOX_AR_X + BOX_PAD_X;
+      const textYAR  = BOX_AR_Y + BOX_PAD_Y;
+
+      // Dessiner le rectangle blanc arrondi AR
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.roundRect(BOX_AR_X, BOX_AR_Y, BOX_AR_W, BOX_AR_H, BOX_R);
+      ctx.fill();
+      ctx.restore();
+
+      // Auto-fit police AR
       let fz = fzIngAR;
       while(fz > minFz){
         ctx.font = `500 ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`;
@@ -1378,30 +1492,37 @@ function drawLabelText(ctx, item){
         let lines = 1, lineW = 0;
         for(const w of words){
           const ww = ctx.measureText(w + ' ').width;
-          if(lineW + ww > maxW){ lines++; lineW = ww; } else { lineW += ww; }
+          if(lineW + ww > maxWAR){ lines++; lineW = ww; } else { lineW += ww; }
         }
-        if(lines * lineH <= ingMaxH) break;
+        if(lines * lineH <= maxHAR) break;
         fz -= 0.5;
       }
       if(fz < minFz) fz = minFz;
+
+      // Clip + dessiner texte AR (RTL, aligné à droite)
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(BOX_AR_X, BOX_AR_Y, BOX_AR_W, BOX_AR_H, BOX_R);
+      ctx.clip();
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = hasBg ? C.ingredientsAr : C.ingredientsArNoBg;
+      ctx.fillStyle = '#222222';
       ctx.font = `500 ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`;
-      const words = ingText.split(' ');
-      let line='', cy=ingArY;
-      const lineH = fz*1.35;
-      const rightX = startXIng + maxW;
-      for(let i=0;i<words.length;i++){
-        const test = line ? line+' '+words[i] : words[i];
-        if(ctx.measureText(test).width > maxW && line){
-          ctx.fillText(line, rightX, cy);
-          line = words[i];
-          cy += lineH;
-          if(cy > ingArY + ingMaxH) break;
-        }else{ line = test; }
+      const wordsAR = ingText.split(' ');
+      let lineAR = '', cyAR = textYAR;
+      const lineHAR = fz * 1.35;
+      const rightXAR = startXAR + maxWAR;
+      for(let i = 0; i < wordsAR.length; i++){
+        const test = lineAR ? lineAR + ' ' + wordsAR[i] : wordsAR[i];
+        if(ctx.measureText(test).width > maxWAR && lineAR){
+          ctx.fillText(lineAR, rightXAR, cyAR);
+          lineAR = wordsAR[i];
+          cyAR += lineHAR;
+          if(cyAR > BOX_AR_Y + BOX_AR_H) break;
+        } else { lineAR = test; }
       }
-      if(line && cy <= ingArY + ingMaxH) ctx.fillText(line, rightX, cy);
+      if(lineAR && cyAR <= BOX_AR_Y + BOX_AR_H) ctx.fillText(lineAR, rightXAR, cyAR);
+      ctx.restore();
       ctx.textAlign = 'left';
     }
   }
@@ -1845,7 +1966,8 @@ function renderTemplates(){
           <label>Boîte X (px)<input type="number" min="0" max="222" value="${L.ingBoxX??''}" placeholder="auto" data-tpl="${name}" data-key="ingBoxX" data-ispx="1" style="width:100%"></label>
           <label>Boîte Y (px)<input type="number" min="0" max="315" value="${L.ingBoxY??''}" placeholder="= ingY" data-tpl="${name}" data-key="ingBoxY" data-ispx="1" style="width:100%"></label>
           <label>Boîte L (px)<input type="number" min="10" max="222" value="${L.ingBoxW??211}" data-tpl="${name}" data-key="ingBoxW" data-ispx="1" style="width:100%"></label>
-          <label>Boîte H (px)<input type="number" min="10" max="315" value="${L.ingBoxH??50}" data-tpl="${name}" data-key="ingBoxH" data-ispx="1" style="width:100%"></label>
+          <label>Boîte H FR (px)<input type="number" min="10" max="315" value="${L.ingBoxH??50}" data-tpl="${name}" data-key="ingBoxH" data-ispx="1" style="width:100%"></label>
+          <label>Boîte H AR (px)<input type="number" min="10" max="315" value="${L.ingArBoxH??50}" data-tpl="${name}" data-key="ingArBoxH" data-ispx="1" style="width:100%"></label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
           <label>Prix Y<input type="number" min="0" max="100" value="${pct('priceY',0.82)}" data-tpl="${name}" data-key="priceY" style="width:100%"></label>
           <label>Unité X<input type="number" min="0" max="100" value="${pct('uniteX',0.85)}" data-tpl="${name}" data-key="uniteX" style="width:100%"></label>
@@ -1882,7 +2004,7 @@ function renderTemplates(){
     const isPx=e.target.dataset.ispx==='1';
     if(!state.tplLayout[tpl]) state.tplLayout[tpl]={};
     state.tplLayout[tpl][key]= isPx ? parseFloat(e.target.value) : parseFloat(e.target.value)/100;
-    save('tpl_layout');
+    save('tplLayout');
     toast(`${key} → ${e.target.value}${isPx?'px':'%'} (${tpl})`,'ok');
   }));
 }
