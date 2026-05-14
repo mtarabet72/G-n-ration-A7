@@ -193,10 +193,21 @@
 })();</script>
 <script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
 <meta charset="UTF-8">
-<link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>A7 v2.1 — Marjane Tanger 08</title>
+
+<!-- ===== PWA META ===== -->
 <meta name="theme-color" content="#1a120a">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Génération A7 — Affichettes Hypermarché</title>
+<meta name="background-color" content="#0d0a06">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Génération A7">
+<meta name="application-name" content="Génération A7">
+<meta name="description" content="Système professionnel de génération d'affichettes A7 pour hypermarché – bilingue FR/AR">
+<link rel="manifest" href="manifest.json">
+<!-- Apple splash / icon hints -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231a120a'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='%23f59e0b'%3E🏷%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -368,8 +379,14 @@ tr:hover td{background:var(--surf3)}
       <button id="logoutBtn" onclick="logout()" title="Déconnexion"><i class="ri-logout-box-r-line"></i></button>
       <span id="hdrQueue" class="badge badge-amber">File: 0</span>
       <span id="hdrBase" class="badge badge-red">Base: 0</span>
+      <button id="installBtn" onclick="installPWA()" title="Installer l'application sur cet appareil" style="display:none;background:var(--amber);color:#000;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;font-weight:700"><i class="ri-download-cloud-2-line"></i> Installer</button>
     </div>
   </header>
+
+  <!-- ===== BANNIÈRE MISE À JOUR PWA ===== -->
+  <div id="pwaUpdateBanner" style="display:none;background:#1d4ed8;color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:600;letter-spacing:.5px">
+    🔄 Nouvelle version disponible — <button onclick="applyUpdate()" style="background:#fff;color:#1d4ed8;border:none;border-radius:4px;padding:2px 10px;cursor:pointer;font-weight:700;margin-left:6px">Mettre à jour</button>
+  </div>
 
   <nav class="nav">
     <button class="nav-btn active" data-tab="saisie" onclick="switchTab('saisie')"><i class="ri-flashlight-line"></i> SAISIE</button>
@@ -378,6 +395,7 @@ tr:hover td{background:var(--surf3)}
     <button class="nav-btn" data-tab="historique" onclick="switchTab('historique')"><i class="ri-history-line"></i> HISTORIQUE</button>
     <button class="nav-btn" data-tab="templates" onclick="switchTab('templates')"><i class="ri-image-edit-line"></i> TEMPLATES</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><i class="ri-settings-3-line"></i> CONFIG</button>
+    <button class="nav-btn" onclick="openHelp()" style="margin-left:auto;color:var(--amber)"><i class="ri-question-line"></i> AIDE</button>
   </nav>
 
   <!-- ===== SAISIE ===== -->
@@ -400,7 +418,7 @@ tr:hover td{background:var(--surf3)}
         <div class="g2">
           <div class="card">
             <label class="lbl">Prix (DH)</label>
-            <input id="priceInput" type="text" inputmode="decimal" placeholder="0,00">
+            <input id="priceInput" type="text" inputmode="decimal" placeholder="0,00" oninput="onFideliteChange()">
           </div>
           <div class="card">
             <label class="lbl">Unité / affichage</label>
@@ -420,6 +438,15 @@ tr:hover td{background:var(--surf3)}
           <label class="lbl">Grammage / Poids (kg) <span style="color:var(--amber)">— Requis pour ce template</span></label>
           <input id="grammageInput" type="text" inputmode="decimal" placeholder="Ex: 0.250">
           <div style="font-size:11px;color:var(--text3);margin-top:4px">Utilisé pour calculer le prix total (Prix × Grammage)</div>
+        </div>
+        <!-- Fidélité -->
+        <div class="card" style="padding:12px" id="fideliteWrap">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label class="lbl" style="margin:0">% Fidélité <span style="color:var(--amber)">🎁</span></label>
+            <span id="fideliteCalcDisplay" style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:var(--amber);"></span>
+          </div>
+          <input id="fideliteInput" type="text" inputmode="decimal" placeholder="Ex: 5  → 5% du prix en points" oninput="onFideliteChange()">
+          <div id="fideliteInfo" style="font-size:11px;color:var(--text3);margin-top:5px;display:none"></div>
         </div>
         <!-- Couleurs textes -->
         <div class="card" style="padding:12px">
@@ -451,7 +478,7 @@ tr:hover td{background:var(--surf3)}
         </button>
         <!-- Import Excel to queue -->
         <div class="card" style="padding:12px">
-          <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">IMPORT EXCEL → FILE (format: Code·Prix·Unité·Template·Grammage)</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">IMPORT EXCEL → FILE (format: Code·Prix·Unité·Template·Grammage·%Fidélité)</div>
           <label class="drop-zone" id="dropImport">
             <i class="ri-file-excel-2-line" style="font-size:24px;display:block;margin-bottom:4px"></i>
             Déposer ou cliquer pour importer
@@ -490,7 +517,7 @@ tr:hover td{background:var(--surf3)}
         <table>
           <thead><tr>
             <th>Code</th><th>Désignation</th><th>Template</th>
-            <th>Prix</th><th>Unité</th><th>Grammage</th><th></th>
+            <th>Prix</th><th>Unité</th><th>Grammage</th><th>Fidélité</th><th></th>
           </tr></thead>
           <tbody id="queueBody"></tbody>
         </table>
@@ -631,6 +658,167 @@ tr:hover td{background:var(--surf3)}
 
 <!-- Toast container -->
 <div id="toast"></div>
+
+<!-- ===== MODAL AIDE / GUIDE UTILISATEUR ===== -->
+<div id="helpModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9000;overflow-y:auto;padding:16px">
+  <div style="max-width:640px;margin:0 auto;background:var(--surf1);border:1px solid var(--border);border-radius:16px;overflow:hidden">
+
+    <!-- Header aide -->
+    <div style="background:linear-gradient(135deg,#1a120a 0%,#2d1f10 100%);padding:20px 20px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:var(--amber);letter-spacing:.5px">📋 GUIDE UTILISATEUR</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Génération A7 — Affichettes Hypermarché</div>
+      </div>
+      <button onclick="closeHelp()" style="background:var(--surf3);border:none;color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px">✕</button>
+    </div>
+
+    <!-- Onglets rôles -->
+    <div style="display:flex;border-bottom:1px solid var(--border);background:var(--surf2)">
+      <button class="help-role-btn active" onclick="showHelpRole('operateur',this)" style="flex:1;padding:10px 6px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--amber);cursor:pointer;border-bottom:2px solid var(--amber);letter-spacing:.5px">👤 OPÉRATEUR</button>
+      <button class="help-role-btn" onclick="showHelpRole('chef',this)" style="flex:1;padding:10px 6px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px">👥 CHEF RAYON</button>
+      <button class="help-role-btn" onclick="showHelpRole('admin',this)" style="flex:1;padding:10px 6px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px">🔑 ADMIN</button>
+      <button class="help-role-btn" onclick="showHelpRole('pwa',this)" style="flex:1;padding:10px 6px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px">📱 APPLI</button>
+      <button class="help-role-btn" onclick="showHelpRole('apropos',this)" style="flex:1;padding:10px 6px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px">ℹ️ À PROPOS</button>
+    </div>
+
+    <!-- Contenu rôle : Opérateur -->
+    <div id="help-operateur" class="help-role-content" style="padding:16px;display:block">
+      <div style="color:var(--amber);font-weight:700;font-size:13px;margin-bottom:12px">🚀 Créer une affichette rapidement</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="help-step"><span class="help-num">1</span><div><strong>Scanner ou saisir le code produit</strong><br><span style="color:var(--text3);font-size:12px">Utilisez le bouton 📷 pour scanner le code-barres ou tapez manuellement. Le produit est chargé automatiquement si la BASE est renseignée.</span></div></div>
+        <div class="help-step"><span class="help-num">2</span><div><strong>Vérifier les informations</strong><br><span style="color:var(--text3);font-size:12px">Désignation FR/AR, prix, promotion, grammage. Corrigez si nécessaire. La prévisualisation A7 se met à jour en temps réel.</span></div></div>
+        <div class="help-step"><span class="help-num">3</span><div><strong>Choisir le template</strong><br><span style="color:var(--text3);font-size:12px">Sélectionnez le gabarit adapté (prix choc, promo, nouveauté…). L'aperçu reflète immédiatement votre choix.</span></div></div>
+        <div class="help-step"><span class="help-num">4</span><div><strong>Ajouter à la file d'impression</strong><br><span style="color:var(--text3);font-size:12px">Cliquez <em>Ajouter à la file</em>. Accumulez plusieurs affichettes, puis imprimez-les toutes en PDF depuis l'onglet FILE.</span></div></div>
+      </div>
+      <div style="margin-top:14px;background:var(--surf2);border-radius:8px;padding:12px;font-size:12px">
+        <div style="color:var(--amber);font-weight:700;margin-bottom:6px">⌨️ Raccourcis clavier</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;color:var(--text2)">
+          <span><kbd style="background:var(--surf3);padding:1px 5px;border-radius:3px;font-size:10px">Entrée</kbd> Valider le code</span>
+          <span><kbd style="background:var(--surf3);padding:1px 5px;border-radius:3px;font-size:10px">F5</kbd> Rafraîchir l'aperçu</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenu rôle : Chef de Rayon -->
+    <div id="help-chef" class="help-role-content" style="padding:16px;display:none">
+      <div style="color:var(--amber);font-weight:700;font-size:13px;margin-bottom:12px">📦 Gérer la base produits & templates</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Onglet BASE</strong><br><span style="color:var(--text3);font-size:12px">Consultez, ajoutez, modifiez et supprimez des produits. Importez depuis un fichier CSV ou Excel. Exportez la base complète.</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Onglet TEMPLATES</strong><br><span style="color:var(--text3);font-size:12px">Créez et personnalisez vos gabarits d'affichettes : couleurs, polices, zones, logos rayon. Chaque template peut être dupliqué et renommé.</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Onglet HISTORIQUE</strong><br><span style="color:var(--text3);font-size:12px">Retrouvez toutes les affichettes générées, filtrez par date, opérateur, code produit. Régénérez rapidement une affichette passée.</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Onglet CONFIG → Mapping</strong><br><span style="color:var(--text3);font-size:12px">Associez les colonnes de votre fichier d'import aux champs de l'application (code, prix, désignation…).</span></div></div>
+      </div>
+      <div style="margin-top:14px;background:#1a2e1a;border:1px solid #2d4a2d;border-radius:8px;padding:10px;font-size:12px;color:#7dc47d">
+        <strong>💡 Conseil :</strong> Préparez un fichier CSV avec les colonnes : <code>code, designation_fr, designation_ar, prix, promo</code>. L'import batch est le moyen le plus rapide de peupler la base.
+      </div>
+    </div>
+
+    <!-- Contenu rôle : Admin -->
+    <div id="help-admin" class="help-role-content" style="padding:16px;display:none">
+      <div style="color:var(--amber);font-weight:700;font-size:13px;margin-bottom:12px">🔐 Administration & sécurité</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Gestion des utilisateurs</strong><br><span style="color:var(--text3);font-size:12px">Bouton <em>Admin</em> dans le header → créez des comptes, définissez les rôles et permissions par onglet. Le mot de passe est hashé (FNV-1a).</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Compte administrateur par défaut</strong><br><span style="color:var(--text3);font-size:12px">Login : <code>admin</code> / Mot de passe : <code>admin123</code>. Changez-le dès la première connexion en production.</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Sauvegarde des données</strong><br><span style="color:var(--text3);font-size:12px">Toutes les données (base, file, historique, templates) sont stockées dans le <em>localStorage</em> du navigateur. Exportez régulièrement via CONFIG → Export.</span></div></div>
+        <div class="help-step"><span class="help-num">▶</span><div><strong>Réinitialisation</strong><br><span style="color:var(--text3);font-size:12px">En cas de problème d'authentification, la page de connexion propose un lien de réinitialisation. Cette action efface tous les comptes.</span></div></div>
+      </div>
+      <div style="margin-top:14px;background:#2e1a1a;border:1px solid #4a2d2d;border-radius:8px;padding:10px;font-size:12px;color:#e07d7d">
+        <strong>⚠️ Important :</strong> Les données sont locales au navigateur de chaque poste. Pour partager la base entre plusieurs postes, utilisez l'export/import JSON ou configurez un serveur partagé.
+      </div>
+    </div>
+
+    <!-- Contenu : Application PWA -->
+    <div id="help-pwa" class="help-role-content" style="padding:16px;display:none">
+      <div style="color:var(--amber);font-weight:700;font-size:13px;margin-bottom:12px">📱 Utiliser comme application installée</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="help-step"><span class="help-num">📲</span><div><strong>Installation sur Android (Chrome)</strong><br><span style="color:var(--text3);font-size:12px">Cliquez le bouton <em>Installer</em> dans le header, ou menu Chrome ⋮ → <em>Ajouter à l'écran d'accueil</em>. L'app s'ouvre en plein écran sans barre de navigateur.</span></div></div>
+        <div class="help-step"><span class="help-num">🍎</span><div><strong>Installation sur iOS (Safari)</strong><br><span style="color:var(--text3);font-size:12px">Appuyez sur le bouton <em>Partager</em> ↑ puis <em>Sur l'écran d'accueil</em>. L'app est ajoutée comme une vraie application.</span></div></div>
+        <div class="help-step"><span class="help-num">🖥️</span><div><strong>Installation sur PC (Chrome/Edge)</strong><br><span style="color:var(--text3);font-size:12px">Cliquez le bouton <em>Installer</em> ou l'icône ⊕ dans la barre d'adresse. L'app s'ouvre dans sa propre fenêtre.</span></div></div>
+        <div class="help-step"><span class="help-num">📶</span><div><strong>Mode hors ligne</strong><br><span style="color:var(--text3);font-size:12px">Une fois installée, l'application fonctionne sans connexion internet. La base, les templates et l'historique restent accessibles.</span></div></div>
+        <div class="help-step"><span class="help-num">🔄</span><div><strong>Mises à jour</strong><br><span style="color:var(--text3);font-size:12px">Une bannière apparaît en haut de l'écran lorsqu'une nouvelle version est disponible. Cliquez <em>Mettre à jour</em> pour l'appliquer.</span></div></div>
+      </div>
+      <div style="margin-top:14px;background:var(--surf2);border-radius:8px;padding:12px;font-size:12px;text-align:center">
+        <div style="color:var(--text3);margin-bottom:8px">Statut du service worker :</div>
+        <div id="swStatus" style="color:var(--amber);font-weight:700">Vérification…</div>
+      </div>
+    </div>
+
+    <!-- Contenu : À PROPOS -->
+    <div id="help-apropos" class="help-role-content" style="padding:20px;display:none">
+      <!-- Badge identité -->
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#004497 0%,#0066cc 60%,#e8002a 100%);box-shadow:0 6px 24px rgba(0,68,151,0.45);margin-bottom:12px">
+          <span style="font-size:30px;font-weight:900;color:#fff;letter-spacing:-2px;font-family:monospace">A7</span>
+        </div>
+        <div style="font-size:22px;font-weight:900;color:var(--amber);letter-spacing:1px;font-family:monospace">A7 <span style="color:#fff">v2.1</span></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px;letter-spacing:2px;text-transform:uppercase">Génération Affichettes A7 · PWA</div>
+      </div>
+
+      <!-- Carte développeur -->
+      <div style="background:linear-gradient(135deg,#0d1829 0%,#0a1f3d 100%);border:1px solid rgba(0,137,255,0.3);border-radius:12px;padding:16px 18px;margin-bottom:14px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(0,137,255,0.12) 0%,transparent 70%);border-radius:0 12px 0 0"></div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(0,137,255,0.7);margin-bottom:8px">👨‍💻 Développé par</div>
+        <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:0.5px">Mohamed <span style="color:#f59e0b">TARABET</span></div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span style="color:rgba(0,137,255,0.6);font-size:14px">🏪</span>
+            <span style="color:var(--text2)">Service <strong style="color:#fff">Décoration</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span style="color:rgba(0,137,255,0.6);font-size:14px">📍</span>
+            <span style="color:var(--text2)"><strong style="color:#fff">Marjane Tanger 08</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span style="color:rgba(0,137,255,0.6);font-size:14px">📅</span>
+            <span style="color:var(--text2)">Mai <strong style="color:#fff">2026</strong></span>
+          </div>
+        </div>
+        <!-- Signature -->
+        <div style="position:absolute;bottom:10px;right:14px;font-family:monospace;font-size:10px;color:rgba(245,158,11,0.4);letter-spacing:1px">MTARABET</div>
+      </div>
+
+      <!-- Changelog -->
+      <div style="background:var(--surf2);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:1px;margin-bottom:10px">📋 CHANGELOG</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="background:var(--amber);color:#000;font-size:9px;font-weight:800;padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0">v2.1</span>
+            <span style="font-size:12px;color:var(--text2)">Fidélité % — calcul auto, Rectangle 11, coordonnées POTX exactes</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="background:var(--surf3);color:var(--text3);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0">v2.0</span>
+            <span style="font-size:12px;color:var(--text3)">PWA multi-utilisateur, scan code-barres, templates POTX A7_AVRIL2026</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="background:var(--surf3);color:var(--text3);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0">v1.0</span>
+            <span style="font-size:12px;color:var(--text3)">Application Excel VBA originale — génération PPTX</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stack technique -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <span style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:var(--amber);font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:0.5px">PWA · Service Worker</span>
+        <span style="background:rgba(0,137,255,0.1);border:1px solid rgba(0,137,255,0.25);color:#60a5fa;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:0.5px">Canvas API</span>
+        <span style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:#4ade80;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:0.5px">jsPDF · SheetJS</span>
+        <span style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);color:#c084fc;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:0.5px">Vanilla JS</span>
+        <span style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:0.5px">POTX A7_AVRIL2026</span>
+      </div>
+    </div>
+
+    <!-- Footer aide -->
+    <div style="border-top:1px solid var(--border);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--surf2)">
+      <div style="font-size:11px;color:var(--text4)">A7 v2.1 · MTARABET · Marjane Tanger 08 · Mai 2026</div>
+      <button onclick="closeHelp()" style="background:var(--amber);color:#000;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:12px">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.help-step { display:flex;gap:12px;align-items:flex-start;background:var(--surf2);border-radius:8px;padding:10px;font-size:13px; }
+.help-num { min-width:26px;height:26px;background:var(--amber);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0; }
+.help-role-btn.active { color:var(--amber) !important; border-bottom:2px solid var(--amber) !important; }
+</style>
 
 <!-- ===== LOGIN OVERLAY ===== -->
 <div id="loginOverlay">
@@ -943,8 +1131,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════
-const TEMPLATES_ALL = ['PAT','PAT_M','BOUL','B_AGN','B_FIL','B_FIL_MN','B_BCK','B_VOL','B_VOL-MN','CHARC','TRAIT','CHARC_CAN','FROM'];
-const SPECIAL_TPL = ['B_FIL','B_FIL_MN','CHARC_CAN']; // prix × grammage
+const TEMPLATES_ALL = ['PAT','PAT_M','BOUL','B_AGN','B_FIL','B_FIL_MN','B_BCK','B_VOL','B_VOL-MN','FROM','TRAIT','FROM_CAN','GLACE'];
+const SPECIAL_TPL = ['B_FIL','B_FIL_MN','FROM_CAN']; // slides avec zone fidélité (Rectangle 11)
 const NO_ING_TPL  = []; // Affichage ingrédients activé pour tous les templates
 
 // Template colors for canvas when no image uploaded
@@ -986,6 +1174,146 @@ const DEFAULT_MAPPING = [
   {prefix:'263', template:'B_VOL',label:'Boucherie Volaille'},
   {prefix:'262', template:'B_AGN',label:'Boucherie Agneau'},
 ];
+
+
+// ═══════════════════════════════════════════════════════════════
+// LAYOUT PAR DÉFAUT — valeurs extraites du POTX A7_AVRIL2026
+// Slide 74×105mm · Toutes coordonnées en fraction du canvas (0..1)
+// Sources: Rectangle 6=DesigFR, 7=DesigAR, 9=Prix, 10=Unité,
+//          3=Allergènes, 4=Ingrédients, 11=Fidélité (slides 5,6,12)
+// ═══════════════════════════════════════════════════════════════
+const DEFAULT_TPL_LAYOUT = {
+  PAT: {
+    yDesFR:0.2198, yDesAR:0.3190, fzDesFR:28, fzDesAR:20,
+    priceY:0.4008, uniteX:0.97, uniteY:0.4008, fzUnite:16,
+    ingY:0.7499,   ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.7881, ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.7261
+  },
+  PAT_M: {
+    yDesFR:0.2198, yDesAR:0.3190, fzDesFR:28, fzDesAR:20,
+    priceY:0.4008, uniteX:0.97, uniteY:0.4008, fzUnite:16,
+    ingY:0.7466,   ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.7829, ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.7181
+  },
+  BOUL: {
+    yDesFR:0.2198, yDesAR:0.3190, fzDesFR:28, fzDesAR:20,
+    priceY:0.4008, uniteX:0.97, uniteY:0.4008, fzUnite:16,
+    ingY:0.7532,   ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.7881, ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.7261
+  },
+  B_AGN: {
+    yDesFR:0.2822, yDesAR:0.3814, fzDesFR:28, fzDesAR:20,
+    priceY:0.5502, uniteX:0.97, uniteY:0.5502, fzUnite:16,
+    ingY:0.8606,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9176, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.8606
+  },
+  B_FIL: {
+    yDesFR:0.2629, yDesAR:0.3814, fzDesFR:26, fzDesAR:18,
+    priceY:0.5346, uniteX:0.57, uniteY:0.5346, fzUnite:14,
+    ingY:0.8579,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9283, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:40, fzPrixDec:12,
+    allergyY:0.8579,
+    // Fidélité — Rectangle 11
+    fidX:0.5960, fidY:0.5346, fidW:0.3767, fidH:0.2917,
+    fzFidInt:24, fzFidDec:10,
+    // Labels arabes fidélité
+    fidLabelArabicY:0.7191, fidRbhY:0.5785
+  },
+  B_FIL_MN: {
+    yDesFR:0.1996, yDesAR:0.3002, fzDesFR:26, fzDesAR:18,
+    priceY:0.4008, uniteX:0.55, uniteY:0.4008, fzUnite:13,
+    ingY:0.7675,   ingBoxW:214, ingBoxH:44, ingBoxX:3,
+    ingArY:0.8161, ingArBoxH:42,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:40, fzPrixDec:12,
+    allergyY:0.7261,
+    // Fidélité — Rectangle 11
+    fidX:0.6024, fidY:0.4008, fidW:0.3546, fidH:0.2917,
+    fzFidInt:24, fzFidDec:10,
+    fidLabelArabicY:0.5860, fidRbhY:0.4255
+  },
+  B_BCK: {
+    yDesFR:0.2607, yDesAR:0.3629, fzDesFR:28, fzDesAR:20,
+    priceY:0.5215, uniteX:0.97, uniteY:0.5215, fzUnite:16,
+    ingY:0.8740,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9430, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.8740
+  },
+  B_VOL: {
+    yDesFR:0.2685, yDesAR:0.3649, fzDesFR:28, fzDesAR:20,
+    priceY:0.5038, uniteX:0.97, uniteY:0.5052, fzUnite:16,
+    ingY:0.8220,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9114, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.8220
+  },
+  'B_VOL-MN': {
+    yDesFR:0.2314, yDesAR:0.3190, fzDesFR:28, fzDesAR:20,
+    priceY:0.4008, uniteX:0.97, uniteY:0.4008, fzUnite:16,
+    ingY:0.7546,   ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.7921, ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.7261
+  },
+  FROM: {
+    yDesFR:0.2628, yDesAR:0.3549, fzDesFR:28, fzDesAR:20,
+    priceY:0.4852, uniteX:0.97, uniteY:0.4838, fzUnite:16,
+    ingY:0.8420,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9430, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.8420
+  },
+  TRAIT: {
+    yDesFR:0.2198, yDesAR:0.3190, fzDesFR:28, fzDesAR:20,
+    priceY:0.4008, uniteX:0.97, uniteY:0.4008, fzUnite:16,
+    ingY:0.7507,   ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.7917, ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.7261
+  },
+  FROM_CAN: {
+    yDesFR:0.2556, yDesAR:0.3348, fzDesFR:26, fzDesAR:18,
+    priceY:0.4752, uniteX:0.56, uniteY:0.4752, fzUnite:13,
+    ingY:0.8606,   ingBoxW:196, ingBoxH:40, ingBoxX:10,
+    ingArY:0.9257, ingArBoxH:38,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:40, fzPrixDec:12,
+    allergyY:0.8606,
+    // Fidélité — Rectangle 11
+    fidX:0.5963, fidY:0.4752, fidW:0.3882, fidH:0.2917,
+    fzFidInt:24, fzFidDec:10,
+    fidLabelArabicY:0.6973, fidRbhY:0.5057
+  },
+  GLACE: {
+    yDesFR:0.3082, yDesAR:0.4132, fzDesFR:28, fzDesAR:20,
+    priceY:0.6495, uniteX:0.97, uniteY:0.6489, fzUnite:16,
+    ingY:0.75,     ingBoxW:214, ingBoxH:46, ingBoxX:3,
+    ingArY:0.80,   ingArBoxH:44,
+    fzIngFR:8, fzIngAR:7,
+    fzPrixInt:52, fzPrixDec:16,
+    allergyY:0.74
+  }
+};
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -1188,6 +1516,41 @@ function toast(msg, type='ok'){
   setTimeout(()=>el.remove(), 2800);
 }
 
+function calcFidelite(prix, pct){
+  const p = parseFloat(String(prix).replace(',','.'));
+  const f = parseFloat(String(pct).replace(',','.'));
+  if(isNaN(p)||isNaN(f)||p<=0||f<=0) return null;
+  return (p * f / 100);
+}
+
+function onFideliteChange(){
+  const pctEl = document.getElementById('fideliteInput');
+  const prixEl = document.getElementById('priceInput');
+  const dispEl = document.getElementById('fideliteCalcDisplay');
+  const infoEl = document.getElementById('fideliteInfo');
+  const pct = pctEl ? pctEl.value.trim() : '';
+  const prix = prixEl ? prixEl.value.trim() : '';
+  if(!pct){ if(dispEl) dispEl.textContent=''; if(infoEl) infoEl.style.display='none'; updatePreview(); return; }
+  const val = calcFidelite(prix, pct);
+  if(val !== null){
+    if(dispEl) dispEl.textContent = '= ' + val.toFixed(2).replace('.',',') + ' DH';
+    if(infoEl){
+      infoEl.textContent = 'Le client gagne ' + val.toFixed(2).replace('.',',') + ' DH en points (' + pct + '% de ' + fmtPrice(prix) + ' DH)';
+      infoEl.style.display='';
+      infoEl.style.color = 'var(--amber)';
+    }
+  } else {
+    if(dispEl) dispEl.textContent = '';
+    if(infoEl){
+      infoEl.textContent = 'Saisissez le prix pour voir le calcul';
+      infoEl.style.display = prix ? '' : 'none';
+      infoEl.style.color = 'var(--text3)';
+    }
+  }
+  updatePreview();
+}
+
+
 function fmtPrice(val){
   const n = parseFloat(String(val).replace(',','.'));
   if(isNaN(n)) return '';
@@ -1317,7 +1680,8 @@ function drawLabelText(ctx, item){
   const C = state.textColors;
 
   // Layout params (positions en % + tailles police)
-  const L = (state.tplLayout[item.template])||{};
+  // Merge: user customization (state.tplLayout) over POTX defaults
+  const L = Object.assign({}, DEFAULT_TPL_LAYOUT[item.template]||{}, state.tplLayout[item.template]||{});
   const yDesFR  = hasBg ? CH*(L.yDesFR??0.18) : 14*m;
   const yDesAR  = hasBg ? CH*(L.yDesAR??0.28) : 23*m;
   const ingY    = hasBg ? CH*(L.ingY  ??0.44) : CH*0.42;
@@ -1405,6 +1769,111 @@ function drawLabelText(ctx, item){
     }
   }
 
+
+  // ─── Rectangle 11 — Fidélité (slides B_FIL, B_FIL_MN, FROM_CAN) ────
+  // Reproduit exactement la logique VBA :
+  //   formattedRectangle11Value = Format(prix * %fid/100, "0.00") & "dh"
+  //   Partie entière  → fzFidInt (24pt) ; partie déc + "dh" → fzFidDec (10pt)
+  const isFidSlide = SPECIAL_TPL.includes(item.template);
+  if(isFidSlide && item.fidelite){
+    const pct  = parseFloat(String(item.fidelite).replace(',','.'));
+    const prixN = parseFloat(String(item.prix).replace(',','.'));
+    if(!isNaN(pct) && pct > 0 && !isNaN(prixN) && prixN > 0){
+      const fidVal  = prixN * pct / 100;
+      const fidFmt  = fidVal.toFixed(2).replace('.',',');
+      const commaI  = fidFmt.indexOf(',');
+      const intPart = commaI > 0 ? fidFmt.substring(0, commaI) : fidFmt;
+      const decPart = (commaI > 0 ? fidFmt.substring(commaI) : ',00') + 'dh';
+
+      // Zone Rectangle 11 — position depuis layout (% du canvas)
+      const fX = hasBg ? (L.fidX ?? 0.60) * CW : (L.fidX ?? 0.60) * CW;
+      const fY = hasBg ? (L.fidY ?? 0.48) * CH : (L.fidY ?? 0.48) * CH;
+      const fW = hasBg ? (L.fidW ?? 0.38) * CW : (L.fidW ?? 0.38) * CW;
+      const fH = hasBg ? (L.fidH ?? 0.29) * CH : (L.fidH ?? 0.29) * CH;
+      const fzInt = L.fzFidInt ?? 24;
+      const fzDec = L.fzFidDec ?? 10;
+
+      // Fond du rectangle fidélité (si pas d'image bg, on dessine un fond)
+      if(!hasBg){
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,68,151,0.12)';
+        ctx.strokeStyle = 'rgba(0,68,151,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(fX, fY, fW, fH, 6);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Label arabe «ربح» (gagner) — en haut à droite du rectangle fidélité
+      const fidLabelAr = 'رْبح';
+      ctx.save();
+      ctx.font = 'bold ' + (fzDec + 2) + 'px sans-serif';
+      ctx.fillStyle = hasBg ? '#ffffff' : '#004497';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(fidLabelAr, fX + fW/2, fY + 4);
+      ctx.restore();
+
+      // Montant fidélité : partie entière (grande) + déc+dh (petite)
+      ctx.save();
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = hasBg ? '#ffffff' : '#004497';
+      ctx.font = '900 ' + fzInt + 'px BFMarjane, Barlow Condensed, sans-serif';
+      const iW = ctx.measureText(intPart).width;
+      ctx.font = '900 ' + fzDec + 'px BFMarjane, Barlow Condensed, sans-serif';
+      const dW = ctx.measureText(decPart).width;
+      const totalFW = iW + dW;
+      const startFX = fX + (fW - totalFW) / 2;
+      const baseYF  = fY + fH * 0.55 + fzInt * 0.45;
+      ctx.font = '900 ' + fzInt + 'px BFMarjane, Barlow Condensed, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(intPart, startFX, baseYF);
+      ctx.font = '900 ' + fzDec + 'px BFMarjane, Barlow Condensed, sans-serif';
+      ctx.fillText(decPart, startFX + iW, baseYF - (fzInt - fzDec) * 0.28);
+      ctx.restore();
+
+      // Label arabe «على بطاقتكم» (sur votre carte) — sous le montant
+      ctx.save();
+      ctx.font = (fzDec + 1) + 'px IBM Plex Sans Arabic, sans-serif';
+      ctx.fillStyle = hasBg ? 'rgba(255,255,255,0.85)' : '#004497';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const labelArabicY = hasBg ? (L.fidLabelArabicY ?? 0.72) * CH : fY + fH * 0.72;
+      ctx.fillText('على بطاقتكم', fX + fW / 2, labelArabicY);
+      ctx.restore();
+
+      // Indicateur % dans le coin (petit)
+      ctx.save();
+      ctx.font = 'bold ' + (fzDec - 1) + 'px sans-serif';
+      ctx.fillStyle = hasBg ? 'rgba(255,255,220,0.9)' : '#f59e0b';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(pct + '%', fX + 3, fY + 3);
+      ctx.restore();
+    }
+  } else if(!isFidSlide && item.fidelite){
+    // Pour les autres slides : petit badge discret en bas à droite
+    const pct  = parseFloat(String(item.fidelite).replace(',','.'));
+    const prixN = parseFloat(String(item.prix).replace(',','.'));
+    if(!isNaN(pct) && pct > 0 && !isNaN(prixN) && prixN > 0){
+      const fidVal = prixN * pct / 100;
+      const fidStr = fidVal.toFixed(2).replace('.',',') + 'dh';
+      const label  = pct + '% = ' + fidStr;
+      ctx.save();
+      ctx.font = 'bold 9px sans-serif';
+      const tw = ctx.measureText(label).width + 10;
+      const bx = CW - 3; const by = CH * (L.allergyY ?? 0.72) - 14;
+      ctx.fillStyle = 'rgba(245,158,11,0.15)';
+      ctx.strokeStyle = 'rgba(245,158,11,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(bx - tw, by - 6, tw, 14, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, bx - 5, by + 1);
+      ctx.restore();
+    }
+  }
 
   // --- Ingrédients AR/FR avec AUTO-FIT ---
   if(hasIng){
@@ -1597,6 +2066,7 @@ function buildCurrentItem(){
     unite: $('#uniteInput').value,
     template,
     grammage: $('#grammageInput').value.trim(),
+    fidelite: (document.getElementById('fideliteInput')||{value:''}).value.trim(),
     ingredients_fr: currentProduct?.ingredients_fr||'',
     ingredients_ar: currentProduct?.ingredients_ar||'',
     origine: currentProduct?.origine||'',
@@ -1649,7 +2119,7 @@ function addToQueue(){
   updateCounters();
   toast(`Ajouté: ${item.designation_fr||item.code}`,'ok');
   // Reset
-  $('#codeInput').value=''; $('#priceInput').value=''; $('#grammageInput').value='';
+  $('#codeInput').value=''; $('#priceInput').value=''; $('#grammageInput').value=''; document.getElementById('fideliteInput').value=''; document.getElementById('fideliteCalcDisplay').textContent=''; document.getElementById('fideliteInfo').style.display='none';
   currentProduct=null; clearPreview($('#previewCanvas')); setStatus('','');
   $('#codeInput').focus();
 }
@@ -1671,6 +2141,7 @@ function renderQueue(){
       <td style="color:var(--amber);font-weight:700;font-family:'IBM Plex Mono'">${it.prix} DH</td>
       <td style="color:var(--text3)">/${it.unite}</td>
       <td style="color:var(--text3);font-size:12px">${it.grammage?it.grammage+' kg':'—'}</td>
+      <td style="color:var(--amber);font-size:12px">${it.fidelite?it.fidelite+'%':'—'}</td>
       <td style="text-align:right">
         <button class="btn btn-ghost btn-sm" onclick="removeFromQueue(${i})"><i class="ri-close-line"></i></button>
       </td>`;
@@ -1723,9 +2194,45 @@ async function generatePDF(){
       drawDefaultBg(ctx,item.template);
       drawLabelText(ctx,item);
     }
+    // ── Signature MTARABET ──────────────────────────────────
+    (function drawSignature(ctx, cw, ch){
+      ctx.save();
+      // Fond pill
+      const sig = 'MTARABET';
+      const fz = Math.round(cw * 0.042);
+      ctx.font = '600 ' + fz + 'px IBM Plex Mono, monospace';
+      const tw = ctx.measureText(sig).width;
+      const px2 = cw - tw - 10, py2 = ch - fz - 4;
+      // Capsule semi-transparente
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.roundRect(px2 - 4, py2 - 2, tw + 8, fz + 4, 3);
+      ctx.fill();
+      // Texte
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = '#f5c518';
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+      ctx.fillText(sig, px2, py2);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    })(offCanvas.getContext('2d'), CW, CH);
+    // ────────────────────────────────────────────────────────
+
     const imgData = offCanvas.toDataURL('image/jpeg',0.92);
     pdf.addImage(imgData,'JPEG',px,py,W,H);
     idx++;
+  }
+
+  // Pied de page PDF discret sur chaque page
+  const totalPages = pdf.internal.getNumberOfPages();
+  for(let p=1; p<=totalPages; p++){
+    pdf.setPage(p);
+    pdf.setFontSize(6);
+    pdf.setTextColor(160,160,160);
+    pdf.text('A7 v2.1 · MTARABET · Marjane Tanger 08 · ' + new Date().toLocaleDateString('fr-FR'), 5, 293);
+    pdf.text('Page ' + p + '/' + totalPages, 200, 293, {align:'right'});
   }
 
   pdf.save(`Etiquettes_A7_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -1753,10 +2260,11 @@ function importExcelToQueue(input){
         const unite = r[2]||'pièce';
         const template = r[3]||findTemplate(code,prod);
         const grammage = r[4]||'';
+        const fidelite = String(r[5]||'').trim();
         const item = {
           id:Date.now()+i,
           code, designation_fr:prod.designation_fr, designation_ar:prod.designation_ar,
-          prix, unite, template, grammage,
+          prix, unite, template, grammage, fidelite,
           ingredients_fr:prod.ingredients_fr, ingredients_ar:prod.ingredients_ar, origine:prod.origine,
           col_j:prod.col_j, col_k:prod.col_k
         };
@@ -2551,7 +3059,109 @@ window.addEventListener('beforeunload', (e)=>{
 });
 
 loadCanvasFonts();
+
+// ═══════════════════════════════════════════════════════════════
+// PWA — SERVICE WORKER + INSTALL PROMPT + AIDE
+// ═══════════════════════════════════════════════════════════════
+
+let _swReg = null;
+let _deferredInstall = null;
+
+// Enregistrement Service Worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      _swReg = reg;
+      console.log('[PWA] SW enregistré:', reg.scope);
+
+      // Détection mise à jour
+      reg.addEventListener('updatefound', ()=>{
+        const newW = reg.installing;
+        newW.addEventListener('statechange', ()=>{
+          if(newW.state === 'installed' && navigator.serviceWorker.controller){
+            document.getElementById('pwaUpdateBanner').style.display = 'block';
+          }
+        });
+      });
+    }).catch(err=>{ console.warn('[PWA] SW échec:', err); });
+  });
+}
+
+// Appliquer la mise à jour
+function applyUpdate(){
+  if(!_swReg || !_swReg.waiting) return;
+  _swReg.waiting.postMessage({type:'SKIP_WAITING'});
+  window.location.reload();
+}
+
+// Install prompt
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _deferredInstall = e;
+  const btn = document.getElementById('installBtn');
+  if(btn) btn.style.display = 'inline-flex';
+});
+
+function installPWA(){
+  if(!_deferredInstall) return;
+  _deferredInstall.prompt();
+  _deferredInstall.userChoice.then(r=>{
+    if(r.outcome === 'accepted'){
+      toast('✅ Application installée avec succès !', 'success');
+      document.getElementById('installBtn').style.display = 'none';
+    }
+    _deferredInstall = null;
+  });
+}
+
+window.addEventListener('appinstalled', ()=>{
+  toast('✅ Génération A7 installée !', 'success');
+  document.getElementById('installBtn').style.display = 'none';
+});
+
+// ── AIDE ──
+function openHelp(){
+  const m = document.getElementById('helpModal');
+  m.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // Statut SW
+  const swEl = document.getElementById('swStatus');
+  if(swEl){
+    if(!('serviceWorker' in navigator)){
+      swEl.textContent = '❌ Non supporté par ce navigateur';
+      swEl.style.color = '#e07d7d';
+    } else if(_swReg){
+      swEl.textContent = '✅ Actif — Mode hors ligne disponible';
+      swEl.style.color = '#7dc47d';
+    } else {
+      swEl.textContent = '⏳ En cours d\'initialisation…';
+      swEl.style.color = 'var(--amber)';
+    }
+  }
+}
+
+function closeHelp(){
+  document.getElementById('helpModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function showHelpRole(role, btn){
+  document.querySelectorAll('.help-role-content').forEach(el=>{ el.style.display='none'; });
+  document.querySelectorAll('.help-role-btn').forEach(b=>{
+    b.classList.remove('active');
+    b.style.color = 'var(--text3)';
+    b.style.borderBottom = '2px solid transparent';
+  });
+  document.getElementById('help-'+role).style.display = 'block';
+  btn.classList.add('active');
+  btn.style.color = 'var(--amber)';
+  btn.style.borderBottom = '2px solid var(--amber)';
+}
+
+// Fermer aide avec Escape
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeHelp();
+});
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');</script>
 </body>
 </html>
