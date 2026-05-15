@@ -2531,50 +2531,51 @@ function renderTemplates(){
         <input type="file" accept="image/*" style="display:none" data-name="${name}">
       </label>
       ${url?`<button class="btn btn-red btn-sm" style="justify-content:center" onclick="clearTemplate('${name}')"><i class="ri-delete-bin-line"></i></button>`:''}
-      <details style="margin-top:8px;font-size:11px">
-        <summary style="cursor:pointer;color:var(--text3);font-weight:600">📐 Positions &amp; 🔤 Police</summary>
-        <div style="font-size:10px;color:var(--text4);margin:4px 0 6px;font-style:italic">Positions: % de l'étiquette · Police: px</div>
-        <div style="font-weight:700;font-size:10px;color:var(--amber);margin-bottom:4px">▸ POSITIONS (%)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-bottom:8px">
-          <label>Désig. FR Y<input type="number" min="0" max="100" value="${pct('yDesFR',0.18)}" data-tpl="${name}" data-key="yDesFR" style="width:100%"></label>
-          <label>Désig. AR Y<input type="number" min="0" max="100" value="${pct('yDesAR',0.28)}" data-tpl="${name}" data-key="yDesAR" style="width:100%"></label>
-          <label>Ingr. FR Y<input type="number" min="0" max="100" value="${pct('ingY',0.44)}" data-tpl="${name}" data-key="ingY" style="width:100%"></label>
-          <label>Ingr. AR Y<input type="number" min="0" max="100" value="${pct('ingArY',0.56)}" data-tpl="${name}" data-key="ingArY" style="width:100%"></label>
-          <label>Ingr. Haut. max<input type="number" min="0" max="100" value="${pct('ingMaxH',0.10)}" data-tpl="${name}" data-key="ingMaxH" style="width:100%"></label>
+      <details style="margin-top:8px;font-size:13px">
+        <summary style="cursor:pointer;color:var(--amber);font-weight:700;padding:6px 0;font-size:13px">📐 Positions &amp; 🔤 Police</summary>
+        <div style="font-size:12px;color:var(--text3);margin:6px 0 8px;font-style:italic">Positions: % de l'étiquette · Police: px</div>
+        <div style="font-weight:700;font-size:12px;color:var(--amber);margin-bottom:6px">▸ POSITIONS (%)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text2)">Désig. FR Y<input type="number" min="0" max="100" value="${pct('yDesFR',0.18)}" data-tpl="${name}" data-key="yDesFR" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Désig. AR Y<input type="number" min="0" max="100" value="${pct('yDesAR',0.28)}" data-tpl="${name}" data-key="yDesAR" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Ingr. FR Y<input type="number" min="0" max="100" value="${pct('ingY',0.44)}" data-tpl="${name}" data-key="ingY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Ingr. AR Y<input type="number" min="0" max="100" value="${pct('ingArY',0.56)}" data-tpl="${name}" data-key="ingArY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Ingr. Haut. max<input type="number" min="0" max="100" value="${pct('ingMaxH',0.10)}" data-tpl="${name}" data-key="ingMaxH" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
         </div>
-        <div style="font-weight:700;font-size:10px;color:#86efac;margin:6px 0 4px">▸ RECTANGLE BLANC INGRÉDIENTS FR (px)</div>
-        <div style="font-size:10px;color:var(--text4);margin-bottom:4px">7.05×1.67cm = 211×50px par défaut</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-bottom:8px">
-          <label>Boîte X (px)<input type="number" min="0" max="222" value="${L.ingBoxX??''}" placeholder="auto" data-tpl="${name}" data-key="ingBoxX" data-ispx="1" style="width:100%"></label>
-          <label>Boîte Y (px)<input type="number" min="0" max="315" value="${L.ingBoxY??''}" placeholder="= ingY" data-tpl="${name}" data-key="ingBoxY" data-ispx="1" style="width:100%"></label>
-          <label>Boîte L (px)<input type="number" min="10" max="222" value="${L.ingBoxW??211}" data-tpl="${name}" data-key="ingBoxW" data-ispx="1" style="width:100%"></label>
-          <label>Boîte H FR (px)<input type="number" min="10" max="315" value="${L.ingBoxH??50}" data-tpl="${name}" data-key="ingBoxH" data-ispx="1" style="width:100%"></label>
-          <label>Boîte H AR (px)<input type="number" min="10" max="315" value="${L.ingArBoxH??50}" data-tpl="${name}" data-key="ingArBoxH" data-ispx="1" style="width:100%"></label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
-          <label>Prix Y<input type="number" min="0" max="100" value="${pct('priceY',0.82)}" data-tpl="${name}" data-key="priceY" style="width:100%"></label>
-          <label>Unité X<input type="number" min="0" max="100" value="${pct('uniteX',0.85)}" data-tpl="${name}" data-key="uniteX" style="width:100%"></label>
-          <label>Unité Y<input type="number" min="0" max="100" value="${pct('uniteY',0.78)}" data-tpl="${name}" data-key="uniteY" style="width:100%"></label>
+        <div style="font-weight:700;font-size:12px;color:#86efac;margin:8px 0 6px">▸ RECTANGLE BLANC INGRÉDIENTS FR (px)</div>
+        <div style="font-size:11px;color:var(--text4);margin-bottom:6px">7.05×1.67cm = 211×50px par défaut</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text2)">Boîte X (px)<input type="number" min="0" max="222" value="${L.ingBoxX??''}" placeholder="auto" data-tpl="${name}" data-key="ingBoxX" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Boîte Y (px)<input type="number" min="0" max="315" value="${L.ingBoxY??''}" placeholder="= ingY" data-tpl="${name}" data-key="ingBoxY" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Boîte L (px)<input type="number" min="10" max="222" value="${L.ingBoxW??211}" data-tpl="${name}" data-key="ingBoxW" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Boîte H FR (px)<input type="number" min="10" max="315" value="${L.ingBoxH??50}" data-tpl="${name}" data-key="ingBoxH" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Boîte H AR (px)<input type="number" min="10" max="315" value="${L.ingArBoxH??50}" data-tpl="${name}" data-key="ingArBoxH" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
         </div>
-        <div style="font-weight:700;font-size:10px;color:var(--amber);margin-bottom:4px">▸ TAILLES POLICE (px)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
-          <label>Désig. FR<input type="number" min="6" max="80" value="${L.fzDesFR??24}" data-tpl="${name}" data-key="fzDesFR" data-ispx="1" style="width:100%"></label>
-          <label>Désig. AR<input type="number" min="6" max="80" value="${L.fzDesAR??22}" data-tpl="${name}" data-key="fzDesAR" data-ispx="1" style="width:100%"></label>
-          <label>Ingr. FR<input type="number" min="4" max="40" value="${L.fzIngFR??11}" data-tpl="${name}" data-key="fzIngFR" data-ispx="1" style="width:100%"></label>
-          <label>Ingr. AR<input type="number" min="4" max="40" value="${L.fzIngAR??11}" data-tpl="${name}" data-key="fzIngAR" data-ispx="1" style="width:100%"></label>
-          <label>Prix (entier)<input type="number" min="10" max="120" value="${L.fzPrixInt??68}" data-tpl="${name}" data-key="fzPrixInt" data-ispx="1" style="width:100%"></label>
-          <label>Prix (déc.)<input type="number" min="8" max="60" value="${L.fzPrixDec??26}" data-tpl="${name}" data-key="fzPrixDec" data-ispx="1" style="width:100%"></label>
-          <label>Unité<input type="number" min="8" max="50" value="${L.fzUnite??22}" data-tpl="${name}" data-key="fzUnite" data-ispx="1" style="width:100%"></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text2)">Prix Y<input type="number" min="0" max="100" value="${pct('priceY',0.82)}" data-tpl="${name}" data-key="priceY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Unité X<input type="number" min="0" max="100" value="${pct('uniteX',0.85)}" data-tpl="${name}" data-key="uniteX" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Unité Y<input type="number" min="0" max="100" value="${pct('uniteY',0.78)}" data-tpl="${name}" data-key="uniteY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
         </div>
-        <div style="font-weight:700;font-size:10px;color:#f59e0b;margin:8px 0 4px">▸ FIDÉLITÉ — Rectangle 11</div>
-        <div style="font-size:10px;color:var(--text4);margin-bottom:5px;font-style:italic">Axes en % de l'étiquette · Police en px</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px">
-          <label>Axe X (%)<input type="number" min="0" max="100" value="${pct('fidX',0.60)}" data-tpl="${name}" data-key="fidX" style="width:100%" title="Position horizontale du rectangle fidélité"></label>
-          <label>Axe Y (%)<input type="number" min="0" max="100" value="${pct('fidY',0.48)}" data-tpl="${name}" data-key="fidY" style="width:100%" title="Position verticale du rectangle fidélité"></label>
-          <label>Largeur (%)<input type="number" min="0" max="100" value="${pct('fidW',0.38)}" data-tpl="${name}" data-key="fidW" style="width:100%" title="Largeur du rectangle en % du canvas"></label>
-          <label>Hauteur (%)<input type="number" min="0" max="100" value="${pct('fidH',0.29)}" data-tpl="${name}" data-key="fidH" style="width:100%" title="Hauteur du rectangle en % du canvas"></label>
-          <label>Police entier<input type="number" min="6" max="80" value="${L.fzFidInt??24}" data-tpl="${name}" data-key="fzFidInt" data-ispx="1" style="width:100%" title="Taille police partie entière (ex: 12)"></label>
-          <label>Police déc.<input type="number" min="4" max="40" value="${L.fzFidDec??10}" data-tpl="${name}" data-key="fzFidDec" data-ispx="1" style="width:100%" title="Taille police partie décimale (ex: 50dh)"></label>
-          <label>Label AR Y (%)<input type="number" min="0" max="100" value="${pct('fidLabelArabicY',0.72)}" data-tpl="${name}" data-key="fidLabelArabicY" style="width:100%" title="Position Y du texte arabe على بطاقتكم"></label>
+        <div style="font-weight:700;font-size:12px;color:var(--amber);margin-bottom:6px">▸ TAILLES POLICE (px)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text2)">Désig. FR<input type="number" min="6" max="80" value="${L.fzDesFR??24}" data-tpl="${name}" data-key="fzDesFR" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Désig. AR<input type="number" min="6" max="80" value="${L.fzDesAR??22}" data-tpl="${name}" data-key="fzDesAR" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Ingr. FR<input type="number" min="4" max="40" value="${L.fzIngFR??11}" data-tpl="${name}" data-key="fzIngFR" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Ingr. AR<input type="number" min="4" max="40" value="${L.fzIngAR??11}" data-tpl="${name}" data-key="fzIngAR" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Prix (entier)<input type="number" min="10" max="120" value="${L.fzPrixInt??68}" data-tpl="${name}" data-key="fzPrixInt" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Prix (déc.)<input type="number" min="8" max="60" value="${L.fzPrixDec??26}" data-tpl="${name}" data-key="fzPrixDec" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+          <label style="font-size:12px;color:var(--text2)">Unité<input type="number" min="8" max="50" value="${L.fzUnite??22}" data-tpl="${name}" data-key="fzUnite" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
+        </div>
+        <div style="font-weight:700;font-size:12px;color:#f59e0b;margin:8px 0 6px">▸ FIDÉLITÉ — Rectangle 11</div>
+        <div style="font-size:11px;color:var(--text4);margin-bottom:6px;font-style:italic">Axes en % de l'étiquette · Police en px</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px">
+          <label style="font-size:12px;color:var(--text2)">Axe X (%)<input type="number" min="0" max="100" value="${pct('fidX',0.60)}" data-tpl="${name}" data-key="fidX" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Position horizontale du rectangle fidélité"></label>
+          <label style="font-size:12px;color:var(--text2)">Axe Y (%)<input type="number" min="0" max="100" value="${pct('fidY',0.48)}" data-tpl="${name}" data-key="fidY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Position verticale du rectangle fidélité"></label>
+          <label style="font-size:12px;color:var(--text2)">Largeur (%)<input type="number" min="0" max="100" value="${pct('fidW',0.38)}" data-tpl="${name}" data-key="fidW" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Largeur du rectangle en % du canvas"></label>
+          <label style="font-size:12px;color:var(--text2)">Hauteur (%)<input type="number" min="0" max="100" value="${pct('fidH',0.29)}" data-tpl="${name}" data-key="fidH" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Hauteur du rectangle en % du canvas"></label>
+          <label style="font-size:12px;color:var(--text2)">Police entier<input type="number" min="6" max="80" value="${L.fzFidInt??24}" data-tpl="${name}" data-key="fzFidInt" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Taille police partie entière (ex: 12)"></label>
+          <label style="font-size:12px;color:var(--text2)">Police déc.<input type="number" min="4" max="40" value="${L.fzFidDec??10}" data-tpl="${name}" data-key="fzFidDec" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Taille police partie décimale (ex: 50dh)"></label>
+          <label style="font-size:12px;color:var(--text2)">Label AR Y (%)<input type="number" min="0" max="100" value="${pct('fidLabelArabicY',0.72)}" data-tpl="${name}" data-key="fidLabelArabicY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px" title="Position Y du texte arabe على بطاقتكم"></label>
         </div>
       </details>`;
     grid.appendChild(card);
