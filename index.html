@@ -1234,6 +1234,27 @@ const ALLERGEN_GROUPS = [
 ];
 const ALLERGEN_FLAT = ALLERGEN_GROUPS.flat();
 
+// Arabic allergen keywords (14 EU allergen groups)
+const ALLERGEN_FLAT_AR = [
+  'الغلوتين','قمح','شعير','شوفان','جاودار',
+  'قشريات','جمبري','كراب','سلطعون',
+  'سمك','سلمون','تونة','تونا','أنشوجة',
+  'بيض','بيضة',
+  'حليب','لبن','جبن','جبنة','كريمة','زبدة','لاكتوز',
+  'فول سوداني','فستق سوداني',
+  'صويا','فول الصويا','سويا',
+  'مكسرات','لوز','جوز','بندق','كاجو','فستق',
+  'كرفس','خردل','سمسم','طحينة','طحينية',
+  'كبريتيت','سلفيت','ترمس','لوبيا',
+  'رخويات','حبار','أخطبوط','محار'
+];
+
+function isAllergenAr(word) {
+  const w = word.trim();
+  if (!w) return false;
+  return ALLERGEN_FLAT_AR.some(a => w === a || w.includes(a) || a.includes(w));
+}
+
 const DEFAULT_MAPPING = [
   {prefix:'2658',template:'FROM',label:'Fromages affinés'},
   {prefix:'265', template:'FROM',label:'Fromages'},
@@ -1760,6 +1781,7 @@ function drawLabelText(ctx, item){
   const ingArY  = hasBg ? CH*(L.ingArY ??0.56) : CH*0.54;
   const ingMaxH = hasBg ? CH*(L.ingMaxH??0.12): 60*m;
   const priceY  = hasBg ? CH*(L.priceY??0.82) : 33*m;
+  const priceX  = (hasBg && L.priceX!=null) ? CW*(L.priceX) : null; // null = auto-center
   const uniteX  = hasBg ? CW*(L.uniteX??0.85) : CW/2;
   const uniteY  = hasBg ? CH*(L.uniteY??0.78) : CH*0.75;
 
@@ -1809,7 +1831,7 @@ function drawLabelText(ctx, item){
   const decW = ctx.measureText(decPart).width;
   const dhW  = ctx.measureText(' dh').width;
   const totalW = intW + decW + dhW;
-  const startX = (CW - totalW) / 2;
+  const startX = (priceX != null) ? priceX : (CW - totalW) / 2;
   const baseY = priceY + fzInt*0.8;
   ctx.font = `900 ${fzInt}px 'BFMarjane', 'Barlow Condensed', sans-serif`;
   ctx.fillText(intPart, startX, baseY);
@@ -2042,29 +2064,55 @@ function drawLabelText(ctx, item){
       }
       if(fz < minFz) fz = minFz;
 
-      // Clip + dessiner texte AR (RTL, aligné à droite)
+      // Clip + dessiner texte AR (RTL, aligné à droite) avec allergènes en rouge
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(BOX_AR_X, BOX_AR_Y, BOX_AR_W, BOX_AR_H, BOX_R);
       ctx.clip();
-      ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = '#222222';
-      ctx.font = `500 ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`;
       const wordsAR = ingText.split(' ');
-      let lineAR = '', cyAR = textYAR;
-      const lineHAR = fz * 1.35;
       const rightXAR = startXAR + maxWAR;
-      for(let i = 0; i < wordsAR.length; i++){
-        const test = lineAR ? lineAR + ' ' + wordsAR[i] : wordsAR[i];
-        if(ctx.measureText(test).width > maxWAR && lineAR){
-          ctx.fillText(lineAR, rightXAR, cyAR);
-          lineAR = wordsAR[i];
-          cyAR += lineHAR;
-          if(cyAR > BOX_AR_Y + BOX_AR_H) break;
-        } else { lineAR = test; }
+      const lineHAR = fz * 1.35;
+      // Build lines first (RTL wrap)
+      const linesAR = [];
+      let curLine = [];
+      let curLineW = 0;
+      ctx.font = `500 ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`;
+      for (let i = 0; i < wordsAR.length; i++) {
+        const word = wordsAR[i];
+        const ww = ctx.measureText(word).width;
+        const spaceW = ctx.measureText(' ').width;
+        if (curLine.length > 0 && curLineW + spaceW + ww > maxWAR) {
+          linesAR.push(curLine);
+          curLine = [{word, ww}];
+          curLineW = ww;
+        } else {
+          if (curLine.length > 0) curLineW += spaceW;
+          curLine.push({word, ww});
+          curLineW += ww;
+        }
       }
-      if(lineAR && cyAR <= BOX_AR_Y + BOX_AR_H) ctx.fillText(lineAR, rightXAR, cyAR);
+      if (curLine.length > 0) linesAR.push(curLine);
+      // Render each line word by word, RTL from right
+      let cyAR = textYAR;
+      for (const line of linesAR) {
+        if (cyAR > BOX_AR_Y + BOX_AR_H) break;
+        let px = rightXAR;
+        // RTL: render words right-to-left
+        for (let i = 0; i < line.length; i++) {
+          const {word, ww} = line[i];
+          const isAlg = isAllergenAr(word);
+          ctx.font = isAlg
+            ? `bold ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`
+            : `500 ${fz}px 'IBM Plex Sans Arabic','BFMarjane',sans-serif`;
+          ctx.fillStyle = isAlg ? (C.allergen || '#FF0000') : (C.ingAr || '#222222');
+          ctx.textAlign = 'right';
+          ctx.fillText(word, px, cyAR);
+          const spaceW = ctx.measureText(' ').width;
+          px -= (ww + spaceW);
+        }
+        cyAR += lineHAR;
+      }
       ctx.restore();
       ctx.textAlign = 'left';
     }
@@ -2390,6 +2438,12 @@ function renderBase(){
 function renderIngHtml(text, maxLen){
   if(!text) return '';
   const t = text.length>maxLen ? text.substring(0,maxLen)+'…' : text;
+  const isArabic = /[\u0600-\u06FF]/.test(t);
+  if(isArabic){
+    return t.split(' ').map(w =>
+      isAllergenAr(w) ? `<span class="alg">${w}</span>` : w
+    ).join(' ');
+  }
   return t.replace(/(\b[A-Z]{3,}\b)/g, w =>
     isAllergen(w) ? `<span class="alg">${w}</span>` : w
   );
@@ -2552,6 +2606,7 @@ function renderTemplates(){
           <label style="font-size:12px;color:var(--text2)">Boîte H AR (px)<input type="number" min="10" max="315" value="${L.ingArBoxH??50}" data-tpl="${name}" data-key="ingArBoxH" data-ispx="1" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text2)" title="Position X du prix en % (vide = centré auto)">Prix X<input type="number" min="0" max="100" value="${L.priceX!=null ? Math.round(L.priceX*100) : ''}" placeholder="auto" data-tpl="${name}" data-key="priceX" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
           <label style="font-size:12px;color:var(--text2)">Prix Y<input type="number" min="0" max="100" value="${pct('priceY',0.82)}" data-tpl="${name}" data-key="priceY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
           <label style="font-size:12px;color:var(--text2)">Unité X<input type="number" min="0" max="100" value="${pct('uniteX',0.85)}" data-tpl="${name}" data-key="uniteX" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
           <label style="font-size:12px;color:var(--text2)">Unité Y<input type="number" min="0" max="100" value="${pct('uniteY',0.78)}" data-tpl="${name}" data-key="uniteY" style="width:100%;font-size:13px;padding:6px 8px;margin-top:2px"></label>
@@ -2597,9 +2652,14 @@ function renderTemplates(){
     const key=e.target.dataset.key;
     const isPx=e.target.dataset.ispx==='1';
     if(!state.tplLayout[tpl]) state.tplLayout[tpl]={};
-    state.tplLayout[tpl][key]= isPx ? parseFloat(e.target.value) : parseFloat(e.target.value)/100;
+    const raw = e.target.value.trim();
+    if(raw === '') {
+      state.tplLayout[tpl][key] = null;
+    } else {
+      state.tplLayout[tpl][key] = isPx ? parseFloat(raw) : parseFloat(raw)/100;
+    }
     save('tplLayout');
-    toast(`${key} → ${e.target.value}${isPx?'px':'%'} (${tpl})`,'ok');
+    toast(`${key} → ${raw||'auto'}${raw&&!isPx?'%':raw&&isPx?'px':''} (${tpl})`,'ok');
   }));
 }
 function clearTemplate(name){
